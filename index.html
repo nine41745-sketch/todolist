@@ -214,6 +214,8 @@
 .fb-disconnect-btn{background:#f8717120;border:1px solid #f87171;border-radius:10px;color:#f87171;padding:10px 16px;font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 20px;font-size:13px;color:#e2e8f0;z-index:300;transition:transform .3s ease;pointer-events:none;white-space:nowrap;}
   .toast.show{transform:translateX(-50%) translateY(0);}
+  #undoToast{display:none;gap:10px;align-items:center;}
+  #undoToast.show{display:flex;}
   .cat-manage-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:320px;overflow-y:auto;}
   .cat-manage-item{display:flex;gap:8px;align-items:center;}
   .cat-manage-item .inp{flex:1;padding:8px 10px;font-size:13px;}
@@ -340,7 +342,7 @@
   <h1>📝 สิ่งที่ต้องทำ</h1>
   <div class="subtitle" id="dateLabel">วันอาทิตย์ที่ 28 มิถุนายน 2569</div>
   <div class="last-updated" id="lastUpdatedLabel"></div>
-  <div class="version-tag" onclick="openVersionModal()" title="ดูประวัติเวอร์ชัน">🏷️ v3.6.0</div>
+  <div class="version-tag" onclick="openVersionModal()" title="ดูประวัติเวอร์ชัน">🏷️ v3.6.2</div>
 
   <div class="toolbar">
     <div class="search-wrap">
@@ -616,7 +618,7 @@
 </div>
 
 <div class="toast" id="toast">📥 นำเข้า 89 รายการแล้ว</div>
-<div class="toast" id="undoToast" style="bottom:68px;pointer-events:auto;display:flex;gap:10px;align-items:center;"><span id="undoText"></span><button onclick="undoDelete()" style="border:0;border-radius:7px;padding:5px 9px;background:#818cf8;color:#fff;cursor:pointer;font-family:inherit;">เลิกทำ</button></div>
+<div class="toast" id="undoToast" style="bottom:68px;pointer-events:auto;"><span id="undoText"></span><button onclick="undoDelete()" style="border:0;border-radius:7px;padding:5px 9px;background:#818cf8;color:#fff;cursor:pointer;font-family:inherit;">เลิกทำ</button></div>
 
 <script>
 const CCLS=['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11'];
@@ -745,6 +747,8 @@ if(!tasks){
 }
 // ── FIREBASE ───────────────────────────────────────
 let _fbApp=null,_fbDb=null,_fbRef=null,_fbAuth=null;
+let _idleLogoutTimer=null;
+const AUTO_LOGOUT_MS=30*60*1000;
 let _pageLoading=true;
 let _lastSaveTime=0;
 let _cloudTasksLoaded=false;
@@ -928,6 +932,7 @@ async function loginTodo(event){
   }
 }
 function stopFirebaseSync(){
+  clearIdleLogoutTimer();
   if(_fbRef){_fbRef.off();_fbRef=null;}
   if(_qnRef){_qnRef.off();_qnRef=null;}
   if(_catRef){_catRef.off();_catRef=null;}
@@ -936,7 +941,25 @@ function stopFirebaseSync(){
   _cloudTasksLoaded=false;
   updateSyncBadge('off');
 }
+function clearIdleLogoutTimer(){
+  if(_idleLogoutTimer){
+    clearTimeout(_idleLogoutTimer);
+    _idleLogoutTimer=null;
+  }
+}
+function resetIdleLogoutTimer(){
+  if(!_fbAuth || !_fbAuth.currentUser || _fbAuth.currentUser.uid!==AUTHORIZED_UID)return;
+  clearIdleLogoutTimer();
+  _idleLogoutTimer=setTimeout(async()=>{
+    showToast('🔒 ออกจากระบบอัตโนมัติ เพราะไม่มีการใช้งาน 30 นาที');
+    await logoutTodo();
+  },AUTO_LOGOUT_MS);
+}
+['pointerdown','keydown','touchstart','scroll'].forEach(eventName=>{
+  document.addEventListener(eventName,resetIdleLogoutTimer,{passive:true});
+});
 async function logoutTodo(){
+  clearIdleLogoutTimer();
   if(_fbAuth) await _fbAuth.signOut();
 }
 function initFirebaseAuth(){
@@ -954,6 +977,7 @@ function initFirebaseAuth(){
         return;
       }
       hideLogin();
+      resetIdleLogoutTimer();
       initFirebaseDB(_HARDCODED_FB_CONFIG);
     });
   }catch(err){
@@ -1727,6 +1751,8 @@ function closeQNDrawer() {
 
 // ── VERSION HISTORY ─────────────────────────────────────
 const VERSION_HISTORY=[
+  {version:'3.6.2',date:'1 ก.ย. 2569',changes:['แก้บั๊กปุ่มเลิกทำแสดงค้าง ทั้งที่ยังไม่ได้ลบงาน']},
+  {version:'3.6.1',date:'31 ส.ค. 2569',changes:['ออกจากระบบอัตโนมัติเมื่อไม่มีการใช้งาน 30 นาที','การคลิก พิมพ์ เลื่อน หรือแตะหน้าจอจะต่ออายุ session']},
   {version:'3.6.0',date:'31 ส.ค. 2569',changes:['เพิ่มหน้า PIN สำหรับปลดล็อก TodoList','จำ session ในเบราว์เซอร์และเริ่ม Cloud Sync หลังปลดล็อกเท่านั้น','จำกัดการใช้งานหน้าเว็บด้วย UID ที่ได้รับอนุญาต']},
   {version:'3.5.0',date:'30 ส.ค. 2569',changes:['เพิ่มงานซ้ำรายวัน/สัปดาห์/เดือน','เพิ่มปุ่มเลิกทำหลังลบงานภายใน 7 วินาที','เพิ่มการแจ้งเตือนงานครบกำหนดขณะเปิดหน้าเว็บ']},
   {
