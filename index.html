@@ -300,6 +300,23 @@
     .qn-drawer.open{bottom:0;right:0;}
     body.light .qn-drawer{border-color:#e2e8f0;}
   }
+  .auth-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0a0f1e,#15132d);}
+  .auth-card{width:100%;max-width:380px;background:#0f172a;border:1px solid #334155;border-radius:18px;padding:24px;box-shadow:0 24px 60px #00000066;}
+  .auth-card h2{font-size:20px;text-align:center;margin-bottom:6px;color:#e2e8f0;}
+  .auth-card p{font-size:13px;text-align:center;line-height:1.6;color:#94a3b8;margin-bottom:18px;}
+  .auth-error{display:none;margin-top:10px;color:#fca5a5;font-size:12px;line-height:1.5;}
+  .auth-error.show{display:block;}
+  .auth-btn{width:100%;margin-top:12px;background:linear-gradient(135deg,#818cf8,#c084fc);border:none;border-radius:10px;color:#fff;padding:11px;font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;}
+  .auth-btn:disabled{opacity:.65;cursor:wait;}
+  .password-wrap{position:relative;}
+  .password-wrap .inp{padding-right:44px;}
+  .password-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#94a3b8;cursor:pointer;padding:7px 9px;font-size:16px;line-height:1;}
+  .password-toggle:hover{color:#c4b5fd;}
+  .password-wrap input::-ms-reveal,.password-wrap input::-ms-clear{display:none;}
+  body.light .auth-overlay{background:linear-gradient(135deg,#e2e8f0,#ede9fe);}
+  body.light .auth-card{background:#fff;border-color:#e2e8f0;}
+  body.light .auth-card h2{color:#1e293b;}
+  body.light .auth-card p{color:#64748b;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
@@ -307,12 +324,23 @@
 </head>
 <body>
 
+<div class="auth-overlay" id="authOverlay" aria-live="polite">
+  <div class="auth-card">
+    <h2>📝 TodoList</h2>
+    <p>กรอกรหัสเพื่อปลดล็อกและซิงค์รายการของคุณ</p>
+    <form onsubmit="loginTodo(event)">
+      <div class="fg"><label class="lbl" for="loginPassword">รหัสเข้า TodoList</label><div class="password-wrap"><input class="inp" id="loginPassword" type="password" inputmode="numeric" autocomplete="current-password" placeholder="กรอกรหัส PIN" required><button class="password-toggle" id="passwordToggle" type="button" onclick="togglePasswordVisibility()" aria-label="แสดงรหัส PIN" aria-pressed="false" title="แสดงรหัส PIN">👁️</button></div></div>
+      <div class="auth-error" id="authError" role="alert"></div>
+      <button class="auth-btn" id="loginBtn" type="submit">ปลดล็อก TodoList</button>
+    </form>
+  </div>
+</div>
 
-<div class="container cat-colors">
+<div class="container cat-colors" id="appShell">
   <h1>📝 สิ่งที่ต้องทำ</h1>
   <div class="subtitle" id="dateLabel">วันอาทิตย์ที่ 28 มิถุนายน 2569</div>
   <div class="last-updated" id="lastUpdatedLabel"></div>
-  <div class="version-tag" onclick="openVersionModal()" title="ดูประวัติเวอร์ชัน">🏷️ v3.5.0</div>
+  <div class="version-tag" onclick="openVersionModal()" title="ดูประวัติเวอร์ชัน">🏷️ v3.6.0</div>
 
   <div class="toolbar">
     <div class="search-wrap">
@@ -323,6 +351,7 @@
     <button class="toolbar-btn" onclick="openCatModal()">⚙️ หมวดหมู่</button>
     <button class="toolbar-btn" id="themeBtn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
     <button class="toolbar-btn" id="notifyBtn" onclick="requestNotifications()" title="เปิดแจ้งเตือนกำหนดส่ง">🔔 แจ้งเตือน</button>
+    <button class="toolbar-btn" onclick="logoutTodo()" title="ออกจากระบบ">↪️ ออก</button>
     <button class="fb-btn fb-on" id="fbBtn" onclick="openFbModal()">☁️ Sync <span id="fbStatus">🟢</span></button>
     <button class="toolbar-btn" onclick="exportData()">📤 ส่งออก</button>
     <button class="toolbar-btn" onclick="document.getElementById(&#39;importFile&#39;).click()">📥 นำเข้า</button>
@@ -526,7 +555,7 @@
       <div class="fb-actions" style="justify-content:center;">
         <button class="fb-cancel-btn" onclick="closeFbModal()">ปิด</button>
         <button class="fb-save-btn" style="background:#d97706;flex:unset;padding:10px 16px;" onclick="closeFbModal();document.getElementById('importFile').click()">📥 นำเข้า backup</button>
-        <button class="fb-disconnect-btn" onclick="disconnectFirebase()">🔌 ยกเลิกการเชื่อมต่อ</button>
+        <button class="fb-disconnect-btn" onclick="logoutTodo()">↪️ ออกจากระบบ</button>
       </div>
     </div>
   </div>
@@ -715,9 +744,12 @@ if(!tasks){
   localStorage.setItem('todo_seed_ver',String(SEED_VERSION));
 }
 // ── FIREBASE ───────────────────────────────────────
-let _fbApp=null,_fbDb=null,_fbRef=null;
+let _fbApp=null,_fbDb=null,_fbRef=null,_fbAuth=null;
 let _pageLoading=true;
 let _lastSaveTime=0;
+let _cloudTasksLoaded=false;
+const AUTHORIZED_UID='LS3Nla95DBcBPBLNkv7K1PA0jkW2';
+const AUTH_EMAIL='nine41745@gmail.com';
 
 tasks.forEach(t=>{
   if(t.pri==='today') t.pri='high';
@@ -786,6 +818,7 @@ function parseFirebaseConfig(raw){
 }
 
 function connectFirebase(){
+  if(!_fbAuth || !_fbAuth.currentUser || _fbAuth.currentUser.uid!==AUTHORIZED_UID){showToast('🔒 กรุณาเข้าสู่ระบบก่อน');return;}
   if(typeof firebase==='undefined'){alert('❌ Firebase SDK ยังไม่โหลด');return;}
   const raw=document.getElementById('fbConfigInput').value.trim();
   if(!raw){alert('❌ กรุณาวาง Firebase Config ก่อน');return;}
@@ -799,6 +832,7 @@ function connectFirebase(){
 function initFirebaseDB(config){
   try{
     if(typeof firebase==='undefined')return;
+    if(!_fbAuth || !_fbAuth.currentUser || _fbAuth.currentUser.uid!==AUTHORIZED_UID)return;
     if(!_fbApp){_fbApp=firebase.initializeApp(config,'todo_sync');}
     _fbDb=firebase.database(_fbApp);
     _fbRef=_fbDb.ref('todo_tasks');
@@ -813,6 +847,7 @@ function initFirebaseDB(config){
         const incoming=JSON.stringify(data);
         const current=JSON.stringify(tasks);
         if(incoming!==current){
+          if(!_cloudTasksLoaded) pushBackupSnapshot('ก่อนโหลดข้อมูลจาก Cloud');
           tasks=data;
           tasks.forEach(t=>{
             if(t.pinned===undefined)t.pinned=false;
@@ -830,6 +865,7 @@ function initFirebaseDB(config){
         const lastUpdated=localStorage.getItem('todo_last_updated')||'';
         _fbRef.set({tasks,lastUpdated});
       }
+      _cloudTasksLoaded=true;
       updateSyncBadge('ok');
       document.getElementById('fb-setup-view').style.display='none';
       document.getElementById('fb-connected-view').style.display='block';
@@ -839,13 +875,95 @@ function initFirebaseDB(config){
   }catch(e){alert('❌ Firebase error: '+e.message);updateSyncBadge('err');}
 }
 
-function disconnectFirebase(){
-  if(!confirm('ยกเลิกการเชื่อมต่อ Firebase?'))return;
+function showAuthError(message){
+  const el=document.getElementById('authError');
+  if(!el)return;
+  el.textContent=message||'';
+  el.classList.toggle('show',!!message);
+}
+function showLogin(message){
+  const pin=document.getElementById('loginPassword');
+  if(pin){pin.value='';pin.type='password';}
+  const toggle=document.getElementById('passwordToggle');
+  if(toggle){toggle.textContent='👁️';toggle.setAttribute('aria-label','แสดงรหัส PIN');toggle.setAttribute('aria-pressed','false');toggle.title='แสดงรหัส PIN';}
+  document.getElementById('authOverlay').style.display='flex';
+  showAuthError(message||'');
+}
+function hideLogin(){
+  document.getElementById('authOverlay').style.display='none';
+  showAuthError('');
+}
+function friendlyAuthError(code){
+  const map={
+    'auth/invalid-credential':'รหัส PIN ไม่ถูกต้อง',
+    'auth/user-not-found':'รหัส PIN ไม่ถูกต้อง',
+    'auth/wrong-password':'รหัส PIN ไม่ถูกต้อง',
+    'auth/too-many-requests':'ลองใหม่ภายหลัง เนื่องจากมีการพยายามปลดล็อกหลายครั้ง'
+  };
+  return map[code]||'เข้าสู่ระบบไม่สำเร็จ กรุณาลองใหม่';
+}
+function togglePasswordVisibility(){
+  const pin=document.getElementById('loginPassword');
+  const toggle=document.getElementById('passwordToggle');
+  if(!pin||!toggle)return;
+  const visible=pin.type==='text';
+  pin.type=visible?'password':'text';
+  toggle.textContent=visible?'👁️':'🙈';
+  toggle.setAttribute('aria-label',visible?'แสดงรหัส PIN':'ซ่อนรหัส PIN');
+  toggle.setAttribute('aria-pressed',String(!visible));
+  toggle.title=visible?'แสดงรหัส PIN':'ซ่อนรหัส PIN';
+  pin.focus();
+}
+async function loginTodo(event){
+  event.preventDefault();
+  if(!_fbAuth){showAuthError('ระบบ Login ยังไม่พร้อม กรุณารีเฟรชหน้าเว็บ');return;}
+  const btn=document.getElementById('loginBtn');
+  btn.disabled=true; btn.textContent='กำลังเข้าสู่ระบบ…'; showAuthError('');
+  try{
+    await _fbAuth.signInWithEmailAndPassword(AUTH_EMAIL,document.getElementById('loginPassword').value);
+  }catch(err){
+    showAuthError(friendlyAuthError(err.code));
+  }finally{
+    btn.disabled=false; btn.textContent='ปลดล็อก TodoList';
+  }
+}
+function stopFirebaseSync(){
   if(_fbRef){_fbRef.off();_fbRef=null;}
-  _fbDb=null;_fbApp=null;
-  localStorage.removeItem('todo_fb_config');
+  if(_qnRef){_qnRef.off();_qnRef=null;}
+  if(_catRef){_catRef.off();_catRef=null;}
+  _fbDb=null;
+  _qnLoaded=false;
+  _cloudTasksLoaded=false;
   updateSyncBadge('off');
-  closeFbModal();
+}
+async function logoutTodo(){
+  if(_fbAuth) await _fbAuth.signOut();
+}
+function initFirebaseAuth(){
+  if(typeof firebase==='undefined'){showLogin('ไม่สามารถโหลดระบบ Login ได้');return;}
+  try{
+    if(!_fbApp)_fbApp=firebase.initializeApp(_HARDCODED_FB_CONFIG,'todo_sync');
+    _fbAuth=firebase.auth(_fbApp);
+    _fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(err=>console.error('Auth persistence error:',err));
+    _fbAuth.onAuthStateChanged(user=>{
+      stopFirebaseSync();
+      if(!user){showLogin();return;}
+      if(user.uid!==AUTHORIZED_UID){
+        _fbAuth.signOut();
+        showLogin('บัญชีนี้ไม่มีสิทธิ์ใช้ TodoList นี้');
+        return;
+      }
+      hideLogin();
+      initFirebaseDB(_HARDCODED_FB_CONFIG);
+    });
+  }catch(err){
+    console.error('Firebase Auth init error:',err);
+    showLogin('ไม่สามารถเริ่มระบบ Login ได้');
+  }
+}
+
+function disconnectFirebase(){
+  logoutTodo();
 }
 
 function buildLastUpdatedStr(){
@@ -893,11 +1011,7 @@ function save(){
   }
 }
 
-(function(){
-  if(typeof firebase!=='undefined'){
-    try{initFirebaseDB(_HARDCODED_FB_CONFIG);}catch(e){console.error('Firebase init error:',e);}
-  }
-})();
+initFirebaseAuth();
 
 function todayStr(){
   const d=new Date();
@@ -1613,6 +1727,7 @@ function closeQNDrawer() {
 
 // ── VERSION HISTORY ─────────────────────────────────────
 const VERSION_HISTORY=[
+  {version:'3.6.0',date:'31 ส.ค. 2569',changes:['เพิ่มหน้า PIN สำหรับปลดล็อก TodoList','จำ session ในเบราว์เซอร์และเริ่ม Cloud Sync หลังปลดล็อกเท่านั้น','จำกัดการใช้งานหน้าเว็บด้วย UID ที่ได้รับอนุญาต']},
   {version:'3.5.0',date:'30 ส.ค. 2569',changes:['เพิ่มงานซ้ำรายวัน/สัปดาห์/เดือน','เพิ่มปุ่มเลิกทำหลังลบงานภายใน 7 วินาที','เพิ่มการแจ้งเตือนงานครบกำหนดขณะเปิดหน้าเว็บ']},
   {
     version:'3.4.0',
