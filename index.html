@@ -2,6 +2,8 @@
 <html lang="th"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'">
 <title>📝 สิ่งที่ต้องทำ</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
@@ -628,7 +630,7 @@ function catLabel(id){ const c=categories.find(c=>c.id===id); return c?c.label:'
 function catClass(id){ return CCLS[((id%12)+12)%12]; }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 function renderCatOptions(){
-  const opts=categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  const opts=categories.map(c=>`<option value="${Number(c.id)||0}">${escapeHtml(c.label)}</option>`).join('');
   const sel1=document.getElementById('catSel'), sel2=document.getElementById('editCat');
   if(sel1){ const v1=sel1.value; sel1.innerHTML=opts; if([...sel1.options].some(o=>o.value===v1)) sel1.value=v1; }
   if(sel2){ const v2=sel2.value; sel2.innerHTML=opts; if([...sel2.options].some(o=>o.value===v2)) sel2.value=v2; }
@@ -636,7 +638,7 @@ function renderCatOptions(){
 }
 function refreshBatchCatOptions(){
   // อัปเดต dropdown หมวดหมู่ในทุกแถวของ Batch Modal ที่ render ไปแล้ว ให้ตรงกับ categories ล่าสุดทันที
-  const opts=categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  const opts=categories.map(c=>`<option value="${Number(c.id)||0}">${escapeHtml(c.label)}</option>`).join('');
   document.querySelectorAll('#batchRowsContainer .batch-row-cat').forEach(sel=>{
     const v=sel.value;
     sel.innerHTML=opts;
@@ -645,90 +647,7 @@ function refreshBatchCatOptions(){
 }
 renderCatOptions();
 const SEED_VERSION=3;
-const ALL_SEED_TASKS=[
-  {text:'ดูเสื้อแขนยาวที่นายจะซื้อใส่อัลบั้ม',pri:'low',cat:2},
-  {text:'จัดที่ตั้งชาร์จแอปเปิ้ลวอร์ชใหม่',pri:'low',cat:0},
-  {text:'จัดระเบียบโต๊ะคอมใหม่',pri:'low',cat:0},
-  {text:'เช็ดมุ้งลวดและกระจกหน้าห้อง',pri:'low',cat:0},
-  {text:'ดูของในห้องมีอะไรจะต้องสั่งไหม',pri:'low',cat:2},
-  {text:'จองคิวอุดฟันล่วงหน้าไว้',pri:'mid',cat:3},
-  {text:'วางแพลนวันไปสอบกพ รอบที่สอง',pri:'high',cat:8},
-  {text:'ทำตารางลงทุนหุ้นน้องเจนแบบ 3 ไม้',pri:'mid',cat:1},
-  {text:'ดูราคาบ้านเช่าในพัทยา',pri:'low',cat:0},
-  {text:'ทำแบบทดสอบกพวันละ 10 ข้อ',pri:'high',cat:8},
-  {text:'จดร้านอาหารอร่อยที่ไปกินตอนเย็นในหัวหิน',pri:'low',cat:9},
-  {text:'ไปเอาใบจบที่มอ',pri:'mid',cat:1},
-  {text:'เอาผ้าเช็ดเท้าไปซัก',pri:'low',cat:0},
-  {text:'สั่งเสื้อบอลทีมชาติ 1 ตัว',pri:'low',cat:2},
-  {text:'ทำความสะอาด CPU ของนาย',pri:'low',cat:0},
-  {text:'ไปอุดฟัน + ขูดหินปูนที่หัวหิน',pri:'mid',cat:3},
-  {text:'หาตัวใหม่อาทิตย์ละ 20 เว็บ',pri:'mid',cat:1},
-  {text:'กดเงินสดไว้ติดตัวบ้าง',pri:'low',cat:6},
-  {text:'สั่งเสื้อกีฬาให้นายและเจนอีก 2 ชุด',pri:'low',cat:2},
-  {text:'สั่งเครื่องปั่นน้ำถ้าราคาไม่เกิน 1,000',pri:'low',cat:2},
-  {text:'เอาผ้าเช็ดล้อรถเตรียมไว้ที่เดียวกัน',pri:'low',cat:5},
-  {text:'โพสขายไอดีเกมส์ Pes เล่นๆ เช็คราคา',pri:'low',cat:11},
-  {text:'ดูเสื้อ-กางเกงไว้ใส่เล่นเพิ่มของนาย',pri:'low',cat:2},
-  {text:'แก้ปัญหาเฟสชอบบินใน iPad',pri:'mid',cat:0},
-  {text:'จดร้านอาหารที่อร่อยแต่ละจังหวัดที่เราไปกินมา',pri:'low',cat:9},
-  {text:'จดสิ่งที่ต้องแต่งตัวเองของน้องเจน',pri:'low',cat:0},
-  {text:'ลงติ๊กตอกแมว',pri:'low',cat:11},
-  {text:'ทักตามพี่บุ๋มเรื่องบัตรน้ำมัน',pri:'mid',cat:1},
-  {text:'ล้างแอร์ + น้ำแอร์ย้อย',pri:'mid',cat:0},
-  {text:'ใส่ยอดเงินเข้าออกในธนาคาร',pri:'mid',cat:6},
-  {text:'ทำพาสสปอร์ต',pri:'mid',cat:1},
-  {text:'สั่งไฟหน้าให้พ่อ',pri:'mid',cat:10},
-  {text:'แต่งรูปที่ถ่ายพัทยา',pri:'low',cat:9},
-  {text:'เอาเงินที่แม่ค่าสอบตำรวจอีก 2,000',pri:'mid',cat:10},
-  {text:'จดข้อมูลสำคัญเกรดเฉลี่ยที่จบและวันที่สอบจบ',pri:'mid',cat:1},
-  {text:'สั่งเมาส์ไร้สายสำหรับโน๊ตบุ๊ก',pri:'low',cat:2},
-  {text:'พาน้องเจนไปสอบใบขับขี่',pri:'mid',cat:10},
-  {text:'ซื้อรองเท้า Yeezy Slide',pri:'low',cat:2},
-  {text:'เอารถไปใส่ลิ้นหน้า',pri:'mid',cat:5},
-  {text:'เอารถไปเคลือบกันชนหน้าใช้ประกัน',pri:'mid',cat:5},
-  {text:'สั่งพัดลมชั้น 3',pri:'low',cat:2},
-  {text:'หาไฟในห้องนอนที่ปรับระดับได้',pri:'low',cat:2},
-  {text:'เปลี่ยนข้อความหน้าโปรไฟล์เฟสบุ๊ค',pri:'low',cat:11},
-  {text:'หายาทาแก้ข้อศอกดำของน้องเจน',pri:'mid',cat:3},
-  {text:'ซื้อยาทาแผลเป็นลดริ้วรอยของน้องเจน',pri:'mid',cat:3},
-  {text:'สั่งน้ำยาสลายคราบล้อรถ',pri:'low',cat:5},
-  {text:'สั่งแปรงล้างกระจก/หลังคา',pri:'low',cat:5},
-  {text:'คิดราคาขายคอมแล้วบอกพีท',pri:'mid',cat:1},
-  {text:'ดูกางเกงขาสั้นเพิ่มไว้ใส่ไปเที่ยว',pri:'low',cat:2},
-  {text:'ดูการแต่งตัวแบบใส่รองเท้าผ้าใบ',pri:'low',cat:0},
-  {text:'ทดลองลงแคร็กไมโครซอฟเอง',pri:'low',cat:0},
-  {text:'ศึกษาประกันสุขภาพ',pri:'mid',cat:3},
-  {text:'ดูฟิล์มดำ 60/80 ติดกระจกหลังห้อง',pri:'low',cat:2},
-  {text:'ดูงานเสริม รับหิ้วของ ทำตัวแทนยูทูป',pri:'mid',cat:1},
-  {text:'ควรสร้างเฟสสำรองทั้งนายและเจน',pri:'low',cat:11},
-  {text:'Civic น็อตลำโพงยาวไป',pri:'low',cat:5},
-  {text:'Civic ตูดเป็ดไม่สมบูรณ์',pri:'low',cat:5},
-  {text:'สั่งที่เติมลมแบบพ่อ',pri:'low',cat:5},
-  {text:'สั่งกางเกงในไว้ที่ชุมพร',pri:'low',cat:2},
-  {text:'ย้ายชื่อโฉนดบ้านที่วังไผ่เป็นของนาย',pri:'high',cat:1},
-  {text:'ใส่กระจก + ที่ครอบโซ่รถเวฟ 125',pri:'low',cat:5},
-  {text:'ขับรถเวฟ 125 ไปขนส่งทำเรื่อง',pri:'mid',cat:1},
-  {text:'รักษารากฟัน + ครอบฟัน ที่โรงพยาบาลหัวหิน',pri:'high',cat:3},
-  {text:'สั่งตู้อบขนน้องแมวตอนอาบน้ำเสร็จ',pri:'low',cat:7},
-  {text:'สั่งห้องน้ำอัตโนมัติน้องแมว',pri:'low',cat:7},
-  {text:'ดูกระเป๋าไว้ใส่ของทำงาน',pri:'low',cat:2},
-  {text:'ดูหมวกกันน็อคให้น้องเจน',pri:'mid',cat:2},
-  {text:'ขายของล้อรถ PCX',pri:'low',cat:4},
-  {text:'ขายรองเท้า Flip Flop',pri:'low',cat:4},
-  {text:'ขายรองเท้า Shuberry',pri:'low',cat:4},
-  {text:'เอารถไปแจ้งเล่มหาย/ทะเบียนหาย',pri:'high',cat:1},
-  {text:'สำรองข้อมูลมือถือนายและเจน',pri:'mid',cat:0},
-  {text:'ตั้งนาฬิการถ Giorno',pri:'low',cat:5},
-  {text:'แต่งรูปรถลงเฟส',pri:'low',cat:11},
-  {text:'คุยเรื่องคอมฟิวส์',pri:'mid',cat:1},
-  {text:'ทำชีตโปรสมาชิกใหม่',pri:'mid',cat:1},
-  {text:'สั่งเสื้อ Essential',pri:'low',cat:2},
-  {text:'ทักหาร้านสักคิ้วให้น้องเจน',pri:'low',cat:0},
-  {text:'ซื้อสติ๊กเกอร์ไลน์เพิ่ม',pri:'low',cat:2},
-  {text:'ลบแชทไลน์ที่เคยคุยกับเว็บ',pri:'mid',cat:0},
-  {text:'ดูรองเท้าแตะให้น้องเจนแบบที่ใส่ทุกวันได้',pri:'low',cat:2},
-  {text:'ดูรองเท้าแตะให้น้องเจนไว้ใส่ไปเที่ยว',pri:'low',cat:2},
-];
+const ALL_SEED_TASKS=[];
 
 let tasks=JSON.parse(localStorage.getItem('todo_tasks')||'null');
 const seedVer=parseInt(localStorage.getItem('todo_seed_ver')||'0');
@@ -749,6 +668,34 @@ if(!tasks){
 let _fbApp=null,_fbDb=null,_fbRef=null,_fbAuth=null;
 let _idleLogoutTimer=null;
 const AUTO_LOGOUT_MS=30*60*1000;
+const ACTIVITY_STORAGE_KEY='todo_last_activity';
+let _lastActivityPersistMs=0;
+function _markTodoSessionActivity(force=false){
+  if(!_fbAuth || !_fbAuth.currentUser || _fbAuth.currentUser.uid!==AUTHORIZED_UID)return;
+  const now=Date.now();
+  if(force || (now-_lastActivityPersistMs)>=5000){
+    localStorage.setItem(ACTIVITY_STORAGE_KEY,String(now));
+    _lastActivityPersistMs=now;
+  }
+}
+function _clearTodoSessionActivity(){
+  localStorage.removeItem(ACTIVITY_STORAGE_KEY);
+  _lastActivityPersistMs=0;
+}
+function _todoSessionIdleExpired(){
+  const raw=localStorage.getItem(ACTIVITY_STORAGE_KEY);
+  if(!raw)return false;
+  const last=Number(raw);
+  if(!Number.isFinite(last)||last<=0)return false;
+  return (Date.now()-last)>=AUTO_LOGOUT_MS;
+}
+function _enforceTodoPersistentIdle(){
+  if(_fbAuth && _fbAuth.currentUser && _fbAuth.currentUser.uid===AUTHORIZED_UID && _todoSessionIdleExpired()){
+    logoutTodo();
+    return true;
+  }
+  return false;
+}
 let _pageLoading=true;
 let _lastSaveTime=0;
 let _cloudTasksLoaded=false;
@@ -950,16 +897,35 @@ function clearIdleLogoutTimer(){
 function resetIdleLogoutTimer(){
   if(!_fbAuth || !_fbAuth.currentUser || _fbAuth.currentUser.uid!==AUTHORIZED_UID)return;
   clearIdleLogoutTimer();
+  _markTodoSessionActivity(false);
+  const last=Number(localStorage.getItem(ACTIVITY_STORAGE_KEY));
+  const elapsed=Number.isFinite(last)&&last>0 ? Date.now()-last : 0;
+  const remaining=Math.max(0,AUTO_LOGOUT_MS-elapsed);
+  if(remaining<=0){ logoutTodo(); return; }
   _idleLogoutTimer=setTimeout(async()=>{
     showToast('🔒 ออกจากระบบอัตโนมัติ เพราะไม่มีการใช้งาน 30 นาที');
     await logoutTodo();
-  },AUTO_LOGOUT_MS);
+  },remaining);
 }
 ['pointerdown','keydown','touchstart','scroll'].forEach(eventName=>{
   document.addEventListener(eventName,resetIdleLogoutTimer,{passive:true});
 });
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){
+    _markTodoSessionActivity(true);
+  }else if(!_enforceTodoPersistentIdle() && _fbAuth && _fbAuth.currentUser){
+    _markTodoSessionActivity(true);
+    resetIdleLogoutTimer();
+  }
+});
+window.addEventListener('pageshow',()=>{
+  if(!_enforceTodoPersistentIdle() && _fbAuth && _fbAuth.currentUser){
+    resetIdleLogoutTimer();
+  }
+});
 async function logoutTodo(){
   clearIdleLogoutTimer();
+  _clearTodoSessionActivity();
   if(_fbAuth) await _fbAuth.signOut();
 }
 function initFirebaseAuth(){
@@ -972,11 +938,19 @@ function initFirebaseAuth(){
       stopFirebaseSync();
       if(!user){showLogin();return;}
       if(user.uid!==AUTHORIZED_UID){
+        _clearTodoSessionActivity();
         _fbAuth.signOut();
         showLogin('บัญชีนี้ไม่มีสิทธิ์ใช้ TodoList นี้');
         return;
       }
+      if(_todoSessionIdleExpired()){
+        _clearTodoSessionActivity();
+        _fbAuth.signOut();
+        showLogin('หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่');
+        return;
+      }
       hideLogin();
+      _markTodoSessionActivity(true);
       resetIdleLogoutTimer();
       initFirebaseDB(_HARDCODED_FB_CONFIG);
     });
@@ -1086,9 +1060,9 @@ function checkDuplicate(){
   const warn=document.getElementById('dupWarn');
   if(!txt||txt.length<3){ warn.classList.remove('show'); return; }
   const exact=tasks.find(t=>t.text.toLowerCase()===txt.toLowerCase()&&!t.done);
-  if(exact){ warn.innerHTML=`⚠️ มีงานนี้อยู่แล้ว: "<b>${exact.text}</b>"`; warn.classList.add('show'); return; }
+  if(exact){ warn.innerHTML=`⚠️ มีงานนี้อยู่แล้ว: "<b>${escapeHtml(exact.text)}</b>"`; warn.classList.add('show'); return; }
   const similar=tasks.find(t=>!t.done&&t.text!==txt&&similarity(t.text,txt)>=0.75);
-  if(similar){ warn.innerHTML=`💡 คล้ายกับที่มีอยู่: "<b>${similar.text}</b>" — ยังเพิ่มได้ถ้าต่างกัน`; warn.classList.add('show'); return; }
+  if(similar){ warn.innerHTML=`💡 คล้ายกับที่มีอยู่: "<b>${escapeHtml(similar.text)}</b>" — ยังเพิ่มได้ถ้าต่างกัน`; warn.classList.add('show'); return; }
   warn.classList.remove('show');
 }
 
@@ -1117,7 +1091,7 @@ function addTask(){
 
 // ── BATCH ADD MODAL ─────────────────────────────────────
 function batchCatOptionsHtml(){
-  return categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  return categories.map(c=>`<option value="${Number(c.id)||0}">${escapeHtml(c.label)}</option>`).join('');
 }
 function createBatchRowHtml(){
   return `<div class="batch-row">
@@ -1353,11 +1327,11 @@ function renderSummary(){
   const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   if(!sorted.length){ grid.innerHTML='<div style="color:#475569;font-size:12px">ไม่มีงานค้าง 🎉</div>'; }
   else{
-    grid.innerHTML=sorted.map(([cat,n])=>`<div class="sum-item" onclick="filterBySummaryCategory(${parseInt(cat)})" title="คลิกเพื่อกรองงานหมวดนี้"><span class="sum-cat">${catLabel(parseInt(cat))}</span><span class="sum-count">${n}</span></div>`).join('');
+    grid.innerHTML=sorted.map(([cat,n])=>`<div class="sum-item" onclick="filterBySummaryCategory(${parseInt(cat)})" title="คลิกเพื่อกรองงานหมวดนี้"><span class="sum-cat">${escapeHtml(catLabel(parseInt(cat)))}</span><span class="sum-count">${n}</span></div>`).join('');
   }
   if(gridPri){
     const priCounts={high:0,mid:0,low:0};
-    pending.forEach(t=>{ priCounts[t.pri]=(priCounts[t.pri]||0)+1; });
+    pending.forEach(t=>{ if(Object.prototype.hasOwnProperty.call(priCounts,t.pri)) priCounts[t.pri]++; });
     const priLabels={high:'🔴 เร่งด่วน',mid:'🟡 ด่วน',low:'🟢 ปกติ'};
     const priEntries=Object.entries(priCounts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
     if(!priEntries.length){ gridPri.innerHTML='<div style="color:#475569;font-size:12px">ไม่มีงานค้าง 🎉</div>'; }
@@ -1472,7 +1446,7 @@ function checkDueNotifications(){
   if(!('Notification' in window)||Notification.permission!=='granted')return;
   const today=todayStr(), seen=JSON.parse(localStorage.getItem('todo_notify_seen')||'{}');
   tasks.filter(t=>!t.done&&t.due&&t.due<=today).forEach(t=>{
-    const key=`${today}:${t.id}`;
+    const key=`${today}:${Number(t.id)||0}`;
     if(seen[key])return;
     new Notification('📝 งานครบกำหนด',{body:t.due<today?`เกินกำหนด: ${t.text}`:`ครบกำหนดวันนี้: ${t.text}`});
     seen[key]=Date.now();
@@ -1538,7 +1512,7 @@ function render(){
     if(summaryCatFilter!==null){
       catFilterChipEl.className='cat-filter-chip';
       catFilterChipEl.style.display='flex';
-      catFilterChipEl.innerHTML=`<span>🔎 กำลังกรองหมวด: <b>${catLabel(summaryCatFilter)}</b></span><button onclick="clearSummaryFilters()">✕ ล้าง</button>`;
+      catFilterChipEl.innerHTML=`<span>🔎 กำลังกรองหมวด: <b>${escapeHtml(catLabel(summaryCatFilter))}</b></span><button onclick="clearSummaryFilters()">✕ ล้าง</button>`;
     } else if(summaryPriFilter!==null){
       catFilterChipEl.className='cat-filter-chip';
       catFilterChipEl.style.display='flex';
@@ -1582,20 +1556,20 @@ function render(){
     }
     return `<div class="todo-item ${t.done?'done':''} ${ov?'overdue':''} ${t.pinned&&!t.done?'pinned':''}">
       <div class="priority-dot ${priCls[t.pri]||'p-low'}"></div>
-      <button class="check-btn ${t.done?'checked':''}" onclick="toggle(${t.id})">${t.done?'✓':''}</button>
+      <button class="check-btn ${t.done?'checked':''}" onclick="toggle(${Number(t.id)||0})">${t.done?'✓':''}</button>
       <div class="todo-body">
-        <div class="todo-text">${t.text}</div>
+        <div class="todo-text">${escapeHtml(t.text)}</div>
         <div class="todo-meta">
-          <span class="tag-cat ${catClass(t.cat)}">${catLabel(t.cat)}</span>
+          <span class="tag-cat ${catClass(t.cat)}">${escapeHtml(catLabel(t.cat))}</span>
           ${dueTag}
           ${repeatTag}
         </div>
-        ${t.note?`<div class="todo-note">📌 ${t.note}</div>`:''}
+        ${t.note?`<div class="todo-note">📌 ${escapeHtml(t.note)}</div>`:''}
       </div>
       <div class="item-actions">
-        <button class="pin-btn ${t.pinned?'pinned':''}" onclick="togglePin(${t.id})" title="${t.pinned?'เอาหมุดออก':'ปักหมุด'}">📌</button>
-        <button class="edit-btn" onclick="openEdit(${t.id})">✏️</button>
-        <button class="del-btn" onclick="del(${t.id})">🗑</button>
+        <button class="pin-btn ${t.pinned?'pinned':''}" onclick="togglePin(${Number(t.id)||0})" title="${t.pinned?'เอาหมุดออก':'ปักหมุด'}">📌</button>
+        <button class="edit-btn" onclick="openEdit(${Number(t.id)||0})">✏️</button>
+        <button class="del-btn" onclick="del(${Number(t.id)||0})">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -1881,9 +1855,9 @@ function renderCatModal(){
   const list=document.getElementById('catManageList');
   if(!list) return;
   list.innerHTML=categories.map(c=>`
-    <div class="cat-manage-item" data-id="${c.id}">
-      <input class="inp" value="${escapeHtml(c.label)}" onchange="renameCategory(${c.id},this.value)">
-      <button class="del-btn" onclick="deleteCategory(${c.id})" title="ลบหมวดหมู่">🗑</button>
+    <div class="cat-manage-item" data-id="${Number(c.id)||0}">
+      <input class="inp" value="${escapeHtml(c.label)}" onchange="renameCategory(${Number(c.id)||0},this.value)">
+      <button class="del-btn" onclick="deleteCategory(${Number(c.id)||0})" title="ลบหมวดหมู่">🗑</button>
     </div>`).join('');
 }
 
